@@ -1,0 +1,24 @@
+
+<div>1</div>
+<div>2</div>
+
+<script type="text/javascript">
+
+var divs = document.getElementsByTagName("div");
+alert(divs.length);
+for (var i = 0; i < divs.length; i++)
+    divs[i].id = "div_" + i;
+    
+var div1 = document.getElementById("div_1");
+alert(div1);
+
+var divs2 = document.getElementsByTagName("div");
+for (var i = 0; i < divs2.length; i++)
+{
+    alert(divs2[i].id);
+}
+
+var div2 = document.getElementById("div_0");
+alert(div2);
+
+</script>

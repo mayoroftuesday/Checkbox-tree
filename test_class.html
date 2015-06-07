@@ -1,0 +1,291 @@
+<html>
+<head>
+
+    <script type="text/javascript">
+
+        // global hash table
+        var _GlobalObjects = new Array();
+        var _GlobalObjectsCount = 0;
+        function StoreGlobal(obj)
+        {
+            var objID = _GlobalObjectsCount;
+            _GlobalObjects[_GlobalObjectsCount++] = obj;
+            return objID;
+        }
+        function GetGlobal(objID)
+        {
+            return _GlobalObjects[objID];
+        }
+
+        // expandable tree
+        function ExpandableTree(_name)
+        {
+            this.name = _name;
+            this.chks = new Array();
+            this.openImg = "";
+            this.closeImg = "";
+            this.indent = "20px";
+            this.recurseDown = "All" // All or None
+            this.recurseUp = "Any"; // Any, All, or None
+            this.displayParents = true;
+            this.collapseButtons = true;
+            this.collapseButtonPlacement = "After" // Before or After
+            
+            this.toggleAll = function(checkVal)
+            {
+                for (var i = 0; i < this.chks.length; i++)
+                {
+                    if (this.chks[i].style.display != "none") // we don't want hidden checkboxes being checked and passed to the form
+                        this.chks[i].checked = checkVal;
+                }
+            }
+
+            this.toggleVisibility = function(chkID)
+            {
+                var toggleSection = document.getElementById(chkID + "_Section");
+                var img = document.getElementById(chkID + "_Button");
+                if (toggleSection.style.visibility == "hidden")
+                {
+                    toggleSection.style.visibility = "visible";
+                    toggleSection.style.display = "block";
+                    img.src = this.openImg;
+                }
+                else
+                {
+                    toggleSection.style.visibility = "hidden";
+                    toggleSection.style.display = "none";
+                    img.src = this.closeImg;
+                }
+            }
+
+            this.toggleChecked = function(chkID)
+            {
+                var chk = document.getElementById(chkID);
+                if (this.displayParents)
+                {            
+                    if (this.recurseDown != "None")
+                        this.toggleChecked_RecurseDown(chk);
+                    if (this.recurseUp != "None")
+                        this.toggleChecked_RecurseUp(chk);
+                }
+            }
+
+            this.toggleChecked_RecurseUp = function(chk)
+            {
+                var parent = document.getElementById(chk.name + "_" + chk.getAttribute('parentvalue'));
+                if (!parent)
+                    return;
+                var sibsChecked = 0;
+                var sibCount = 0;
+                for (var i = 0; i < this.chks.length; i++)
+                {
+                    if (this.chks[i].getAttribute('parentvalue') == chk.getAttribute('parentvalue'))
+                    {
+                        sibCount++;
+                        if (this.chks[i].checked)
+                        {
+                            sibsChecked++;
+                        }
+                    }
+                }        
+                if (parent.checked != sibsChecked)
+                {
+                    var recurseTest;
+                    if (this.recurseUp == "Any")
+                        recurseTest = ">0";
+                    else if (this.recurseUp == "All")
+                        recurseTest = "==" + sibCount;
+                    parent.checked = eval(sibsChecked + recurseTest)
+                    this.toggleChecked_RecurseUp(parent);
+                }        
+            }
+
+            this.toggleChecked_RecurseDown = function(chk)
+            {
+                for (var i = 0; i < this.chks.length; i++)
+                {
+                    if (this.chks[i].getAttribute('parentvalue') == chk.value)
+                    {
+                        if (this.chks[i].checked != chk.checked)
+                        {
+                            this.chks[i].checked = chk.checked;
+                            this.toggleChecked_RecurseDown(this.chks[i]);
+                        }
+                    }
+                }
+            }
+
+            // fix element id's and attach event handlers
+            this.registerExpandableTree = function()
+            {
+                var objID = StoreGlobal(this);
+            
+                // fix div id's
+                var divs = document.getElementsByTagName("div");
+                for (var i = 0; i < divs.length; i++)
+                {
+                    section = divs[i];
+                    if (section.getAttribute("name") == this.name)
+                    {
+                        val = section.getAttribute("parentvalue");
+                        if (val)
+                        {
+                            section.id = this.name + "_" + val + "_Section";
+                            var chk;
+                            for (var c = 0; c < section.childNodes.length; c++)
+                            {
+                                chk = section.childNodes[c];
+                                if (chk.getAttribute && chk.getAttribute("type") == "checkbox")
+                                    chk.setAttribute("parentvalue", val);
+                            }
+                        }
+                    }
+                }
+
+                // get list of checkboxes in this tree (exclude div's with name=this.name)
+                var obj;
+                var tmpchks = document.getElementsByName(this.name);
+                for (var i = 0; i < tmpchks.length; i++)
+                {
+                    obj = tmpchks[i];
+                    if (obj.getAttribute("type") == "checkbox")
+                    {
+                        this.chks.push(obj);
+                    }
+                }
+                
+                // wire up events and add collapse images
+                var toggleSection;
+                for (var i = 0; i < this.chks.length; i++)
+                {
+                    // fix checkbox id's and wire up events
+                    this.chks[i].id = this.name + '_' + this.chks[i].value;
+                    eval("this.chks[i].onclick = function() { GetGlobal(" + objID + ").toggleChecked('" + this.chks[i].id + "'); };");
+                    this.chks[i].onkeypress= function() { onclick(); };
+                    
+                    // wireup section collapsing (add images with events)
+                    toggleSection = document.getElementById(this.chks[i].id + "_Section");
+                    if (toggleSection)
+                    {
+                        if (this.displayParents == false)
+                            this.chks[i].style.display = "none";
+                        if (this.collapseButtons)
+                        {
+                            var newCollapseButton = document.createElement('img');
+                            newCollapseButton.src = this.openImg;
+                            newCollapseButton.id = this.chks[i].id + "_Button";
+                            eval("newCollapseButton.onclick = function() { GetGlobal(" + objID + ").toggleVisibility('" + this.chks[i].id + "'); };");
+
+                            if (this.collapseButtonPlacement == "Before")
+                                this.chks[i].parentNode.insertBefore(newCollapseButton, this.chks[i]);
+                            else if (this.collapseButtonPlacement == "After")
+                                this.chks[i].parentNode.insertBefore(newCollapseButton, toggleSection);    
+                        }
+                        toggleSection.style.paddingLeft = this.indent;
+                    }
+                }
+            }
+        }
+    </script>
+
+</head>
+<body>
+    <form action="#">
+        <h1>
+            List 1</h1>
+        <div>
+            <a href="#" onclick="et1.toggleAll(true);">Select All</a> | <a href="#"
+                onclick="et1.toggleAll(false);">Clear</a>
+        </div>
+        <div>
+            <input type="checkbox" name="list1" value="1100" />
+            Group 1.1
+            <div parentvalue="1100" name="list1">
+                <input type="checkbox" name="list1" value="1110" />
+                Item 1.1.1
+                <br />
+                <input type="checkbox" name="list1" value="1120" />
+                Item 1.1.2
+                <br />
+            </div>
+        </div>
+        <div>
+            <input type="checkbox" name="list1" value="1200" />
+            Group 1.2
+            <div parentvalue="1200" name="list1">
+                <input type="checkbox" name="list1" value="1210" />
+                Item 1.2.1
+                <br />
+                <input type="checkbox" name="list1" value="1220" />
+                Item 1.2.2
+                <br />
+                <input type="checkbox" name="list1" value="1230" />
+                Item 1.2.3
+                <div parentvalue="1230" name="list1">
+                    <input type="checkbox" name="list1" value="1231" />
+                    Item 1.2.3.1
+                    <br />
+                    <input type="checkbox" name="list1" value="1232" />
+                    Item 1.2.3.2
+                    <br />
+                </div>
+            </div>
+        </div>
+        <h1>
+            List 2</h1>
+        <div>
+            <a href="#" onclick="et2.toggleAll(true);">Select All</a> | <a href="#"
+                onclick="et2.toggleAll(false);">Clear</a>
+        </div>
+        <div>
+            <input type="checkbox" name="list2" value="2100" />
+            Group 2.1
+            <div parentvalue="2100" name="list2">
+                <input type="checkbox" name="list2" value="2110" />
+                Item 2.1.1
+                <br />
+                <input type="checkbox" name="list2" value="2120" />
+                Item 2.1.2
+                <br />
+            </div>
+        </div>
+        <div>
+            <input type="checkbox" name="list2" value="2200" />
+            Group 2.2
+            <div parentvalue="2200" name="list2">
+                <input type="checkbox" name="list2" value="2210" />
+                Item 2.2.1
+                <br />
+                <input type="checkbox" name="list2" value="2220" />
+                Item 2.2.2
+                <br />
+                <input type="checkbox" name="list2" value="2230" />
+                Item 2.2.3
+                <div parentvalue="2230" name="list2">
+                    <input type="checkbox" name="list2" value="2231" />
+                    Item 2.2.3.1
+                    <br />
+                    <input type="checkbox" name="list2" value="2232" />
+                    Item 2.2.3.2
+                    <br />
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <script type="text/javascript">
+        var et1 = new ExpandableTree("list1");
+        et1.openImg =  "arrow_down.gif";
+        et1.closeImg = "arrow_up.gif";
+        et1.registerExpandableTree();
+        
+        var et2 = new ExpandableTree("list2");
+        et2.openImg = "minus.gif";
+        et2.closeImg = "plus.gif";
+        et2.displayParents = false;
+        et2.collapseButtonPlacement = "Before";
+        et2.registerExpandableTree();
+    </script>
+
+</body>
+</html>

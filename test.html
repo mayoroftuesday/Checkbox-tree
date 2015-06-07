@@ -1,0 +1,192 @@
+<script type="text/javascript">
+
+Array.prototype.insert = function(index, value)
+{
+	this.splice(index, index, new Array(value, this[index]));
+}
+var a = new Array(1, 2, 3, 4, 5);
+a.insert(1, 1000);
+//document.write(a); document.write("<BR>");
+
+</script>
+
+
+<div>
+	<a href="#" onclick="toggleAll('commonName', true);">Select All</a> |
+	<a href="#" onclick="toggleAll('commonName', false);">Clear</a>
+</div>
+
+<div>
+	<input type="checkbox" name="commonName" value="700"> Group 1
+		
+	<div parentValue="700">
+		<input type="checkbox" name="commonName" value="589"> Item 1.1 <br>
+		<input type="checkbox" name="commonName" value="594"> Item 1.2 <br>
+	</div>
+</div>
+
+<div>
+	<input type="checkbox" name="commonName" value="606"> Group 2
+
+	<div parentValue="606">
+		<input type="checkbox" name="commonName" value="138"> Item 2.1 <br>
+		<input type="checkbox" name="commonName" value="913"> Item 2.2 <br>
+		<input type="checkbox" name="commonName" value="111"> Item 2.3
+
+		<div parentValue="111">
+			<input type="checkbox" name="commonName" value="222"> Item 2.3.1 <br>
+			<input type="checkbox" name="commonName" value="333"> Item 2.3.2 <br>
+		</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+
+	// multiple trees on one page w/ different properties
+	// make a c# class to build the menus
+
+	var chks = null;
+	var openImg = "";
+	var closeImg = "";
+	var indent = "20px";
+	var recurseDown = "All" // All or None
+	var recurseUp = "Any"; // Any, All, or None
+	var displayParents = true;
+	var collapseButtons = true;
+	var collapseButtonPlacement = "After" // Before or After
+
+	function toggleAll(name, checkVal)
+	{
+		for (var i = 0; i < chks.length; i++)
+		{
+			chks[i].checked = checkVal;
+		}
+	}
+
+	function toggleVisibility(chkID)
+	{
+		var toggleSection = document.getElementById(chkID + "_Section");
+		var img = document.getElementById(chkID + "_Button");
+		if (toggleSection.style.visibility == "hidden")
+		{
+			toggleSection.style.visibility = "visible";
+			toggleSection.style.display = "block";
+			img.src = openImg;
+		}
+		else
+		{
+			toggleSection.style.visibility = "hidden";
+			toggleSection.style.display = "none";
+			img.src = closeImg;
+		}
+	}
+
+	function toggleChecked(chk)
+	{
+		if (recurseDown != "None")
+			toggleChecked_RecurseDown(chk);
+		if (recurseUp != "None")
+			toggleChecked_RecurseUp(chk);
+	}
+
+	function toggleChecked_RecurseUp(chk)
+	{
+		var parent = document.getElementById(chk.name + "_" + chk.getAttribute('parentValue'));
+		if (!parent)
+			return;
+		var sibsChecked = 0;
+		var sibCount = 0;
+		for (var i = 0; i < chks.length; i++)
+		{
+			if (chks[i].getAttribute('parentValue') == chk.getAttribute('parentValue'))
+			{
+				sibCount++;
+				if (chks[i].checked)
+				{
+					sibsChecked++;
+				}
+			}
+		}		
+		if (parent.checked != sibsChecked)
+		{
+			var recurseTest;
+			if (recurseUp == "Any")
+				recurseTest = ">0";
+			else if (recurseUp == "All")
+				recurseTest = "==" + sibCount;
+			parent.checked = eval(sibsChecked + recurseTest)
+			toggleChecked_RecurseUp(parent);
+		}		
+	}
+
+	function toggleChecked_RecurseDown(chk)
+	{
+		for (var i = 0; i < chks.length; i++)
+		{
+			if (chks[i].getAttribute('parentValue') == chk.value)
+			{
+				if (chks[i].checked != chk.checked)
+				{
+					chks[i].checked = chk.checked;
+					toggleChecked_RecurseDown(chks[i]);
+				}
+			}
+		}
+	}
+
+	function registerExpandableTree(name, oI, cI)
+	{
+		openImg = oI;
+		closeImg = cI;
+
+		divs = document.getElementsByTagName("div");
+		for (var i = 0; i < divs.length; i++)
+		{
+			section = divs[i];
+			val = section.getAttribute("parentValue");
+			if (val)
+			{
+				section.id = name + "_" + val + "_Section";
+				var chk;
+				for (var c = 0; c < section.childNodes.length; c++)
+				{
+					chk = section.childNodes[c];
+					if (chk.getAttribute && chk.getAttribute("type") == "checkbox")
+						chk.setAttribute("parentValue", val);
+				}
+			}
+		}
+
+		chks = document.getElementsByName(name);
+		var toggleButton;
+		var toggleSection;
+		for (var i = 0; i < chks.length; i++)
+		{
+			chks[i].id = name + '_' + chks[i].value;
+			chks[i].onclick = function() { toggleChecked(this); };
+			chks[i].onkeypress= function() { onclick(); };
+			toggleSection = document.getElementById(chks[i].id + "_Section");
+			if (toggleSection)
+			{
+				if (displayParents == false)
+					chks[i].style.display = "none";
+				if (collapseButtons)
+				{
+					var newCollapseButton = document.createElement('img');
+					newCollapseButton.src = openImg;
+					newCollapseButton.id = chks[i].id + "_Button";
+					eval("newCollapseButton.onclick = function() { toggleVisibility('" + chks[i].id + "'); }");
+
+					if (collapseButtonPlacement == "Before")
+						chks[i].parentNode.insertBefore(newCollapseButton, chks[i]);
+					else if (collapseButtonPlacement == "After")
+						chks[i].parentNode.insertBefore(newCollapseButton, toggleSection);
+				}
+				toggleSection.style.paddingLeft = indent;
+			}
+		}
+	}
+
+	
+	registerExpandableTree("commonName", "arrow_down.gif", "arrow_up.gif");
+</script>
